@@ -27,7 +27,7 @@ unsigned int hueCounter = 0;
 
 Scheme currentScheme = FIRST_SCHEME;
 unsigned long previousMillis = millis();
-unsigned long delayInMillis = 60 * 1000;
+unsigned long delayInMillis = 10 * 1000;
 
 
 void setup() {
@@ -192,6 +192,7 @@ void update_current() {
   if (scheme == RANDOM_SCHEME) {
     unsigned long currentMillis = millis();
     if ((currentMillis - previousMillis) >= delayInMillis) {
+//      Serial.write("changing schemes\n");
       currentScheme = (currentScheme+1)%RANDOM_SCHEME;
       setup_scheme();
       previousMillis = currentMillis;
