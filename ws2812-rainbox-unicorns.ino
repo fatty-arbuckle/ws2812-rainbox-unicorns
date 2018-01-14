@@ -6,11 +6,15 @@ void set_leds();
 void update_current();
 
 enum Scheme {
-  CHASE_FORWARD,
+  FIRST_SCHEME = 0,
+  CHASE_FORWARD = 0,
   CHASE_BACKWARD,
   BOUNCE,
-  MOVING_RAINBOW
-} scheme = MOVING_RAINBOW;
+  MOVING_RAINBOW,
+  RAINBOW_OOZE,
+  LAST_SCHEME,
+  RANDOM_SCHEME
+} scheme = RANDOM_SCHEME;
 
 const unsigned int NUM_LEDS = 50;
 CRGB leds[NUM_LEDS];
@@ -19,13 +23,26 @@ int previousLed = 0;
 CRGB currentColor = CHSV(0,0,0);
 CRGB secondaryColor = CHSV(0,0,0);
 char dir = 1;
+unsigned int hueCounter = 0;
+
+Scheme currentScheme = FIRST_SCHEME;
+unsigned long previousMillis = millis();
+unsigned long delayInMillis = 60 * 1000;
 
 
 void setup() {
+//  Serial.begin(9600);
+//  while (!Serial) {
+//    ; // wait for serial port to connect. Needed for native USB port only
+//  }
+
   // a WS2811 on pin 3
   FastLED.addLeds<WS2811, 3, RGB>(leds, NUM_LEDS);
+  setup_scheme(); 
+}
 
-  switch (scheme) {
+void setup_scheme() {
+  switch (currentScheme) {
     case CHASE_FORWARD:
       dir = 1;
       break;
@@ -34,11 +51,17 @@ void setup() {
       break;
     case BOUNCE:
     case MOVING_RAINBOW:
+      dir = 1;
+      break;
+    case RAINBOW_OOZE:
+      hueCounter = 0;
+      break;
     default:
       dir = 1;
       break;
   }
 }
+
 
 void loop() {
   bounds_check();
@@ -52,7 +75,7 @@ void loop() {
 
 // bounds checks the currentLed to and links the beginning and the end of the strip
 void bounds_check() {
-  switch (scheme) {
+  switch (currentScheme) {
     case CHASE_FORWARD:
     case CHASE_BACKWARD:
     case MOVING_RAINBOW:
@@ -72,21 +95,32 @@ void bounds_check() {
         currentLed = (NUM_LEDS-1);
         dir *= -1;
       }
+      break;
+    case RAINBOW_OOZE:
+      if (hueCounter >= 256) {
+        hueCounter = 0;
+      }
+      break;
     default:
       currentLed %= NUM_LEDS;
   }
 }
 
 
-void update_color() {
-  switch (scheme) {
+void update_color() {      
+  switch (currentScheme) {
     case CHASE_FORWARD:
     case CHASE_BACKWARD:
+      currentColor = CHSV(random8(),random8(),random8());
+      break;
     case BOUNCE:
       if (currentLed == 0 || currentLed == (NUM_LEDS-1)) {
         currentColor = CHSV(random8(),random8(),random8());
         secondaryColor = CHSV(random8(),random8(),random8());
       }
+      break;
+    case RAINBOW_OOZE:
+        currentColor = CHSV(hueCounter, 255, 255);
       break;
     default:
       currentColor = CHSV(random8(),random8(),random8());
@@ -96,7 +130,7 @@ void update_color() {
 
 
 void set_leds() {
-  switch (scheme) {
+  switch (currentScheme) {
     case CHASE_FORWARD:
     case CHASE_BACKWARD:
       leds[currentLed] = currentColor;
@@ -125,6 +159,11 @@ void set_leds() {
         leds[(currentLed+i)%NUM_LEDS] = CRGB::DarkViolet;
       }
       break;
+    case RAINBOW_OOZE:
+      for (unsigned char i=0; i<50; i++) {
+        leds[i] = currentColor;
+      }
+      break;
     default:
       leds[currentLed] = currentColor;
       break;
@@ -133,13 +172,15 @@ void set_leds() {
 
 
 int how_long() {
-  switch (scheme) {
+  switch (currentScheme) {
     case CHASE_FORWARD:
     case CHASE_BACKWARD:
     case BOUNCE:
       return 20;
     case MOVING_RAINBOW:
-      return 200;
+      return 100;
+    case RAINBOW_OOZE:
+      return 100;
     default:
       return 10;
   }
@@ -147,11 +188,26 @@ int how_long() {
   
 
 void update_current() {
+
+  if (scheme == RANDOM_SCHEME) {
+    unsigned long currentMillis = millis();
+    if ((currentMillis - previousMillis) >= delayInMillis) {
+      currentScheme = (currentScheme+1)%RANDOM_SCHEME;
+      setup_scheme();
+      previousMillis = currentMillis;
+    }
+  }
+
   previousLed = currentLed;
-  switch (scheme) {
+  switch (currentScheme) {
     case CHASE_FORWARD:
     case CHASE_BACKWARD:
     case BOUNCE:
+      currentLed += dir;
+      break;
+    case RAINBOW_OOZE:
+      hueCounter += 1;
+      break;
     default:
       currentLed += dir;
       break;
