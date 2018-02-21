@@ -29,15 +29,20 @@ Scheme currentScheme = FIRST_SCHEME;
 unsigned long previousMillis = millis();
 unsigned long delayInMillis = 10 * 1000;
 
+const int PIN_FASTLED = 3;
+const int PIN_BUTTON = 7;
+
+int lastButtonState = LOW;
 
 void setup() {
-//  Serial.begin(9600);
-//  while (!Serial) {
-//    ; // wait for serial port to connect. Needed for native USB port only
-//  }
+  Serial.begin(9600);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
 
-  // a WS2811 on pin 3
-  FastLED.addLeds<WS2811, 3, RGB>(leds, NUM_LEDS);
+  pinMode(PIN_BUTTON, INPUT);
+
+  FastLED.addLeds<WS2811, PIN_FASTLED, RGB>(leds, NUM_LEDS);
   setup_scheme(); 
 }
 
@@ -62,8 +67,39 @@ void setup_scheme() {
   }
 }
 
+const char * to_string(Scheme s) {
+  switch (s) {
+    case CHASE_FORWARD:   return "CHASE_FORWARD";
+    case CHASE_BACKWARD:  return "CHASE_BACKWARD";
+    case BOUNCE:          return "BOUNCE";
+    case MOVING_RAINBOW:  return "MOVING_RAINBOW";
+    case RAINBOW_OOZE:    return "RAINBOW_OOZE";
+    default:              return "???";
+  };
+}
 
 void loop() {
+  
+  int buttonState = digitalRead(PIN_BUTTON);
+
+  if (buttonState != lastButtonState) {
+    if (buttonState == HIGH) {
+      // if the current state is HIGH then the button went from off to on:
+      // Serial.println("button is HIGH");
+    } else {
+      // if the current state is LOW then the button went from on to off:
+      // Serial.println("button is LOW");
+      currentScheme = (currentScheme+1)%(RANDOM_SCHEME-1);
+      Serial.print("scheme changed by button to ");
+      Serial.println(to_string(currentScheme));
+      setup_scheme();
+    }
+  }
+//  Serial.flush();
+  
+  lastButtonState = buttonState;
+
+  
   bounds_check();
   update_color();
   set_leds();
@@ -183,7 +219,7 @@ int how_long() {
       return 100;
     default:
       return 10;
-  }
+  };
 }
   
 
@@ -194,6 +230,7 @@ void update_current() {
     if ((currentMillis - previousMillis) >= delayInMillis) {
 //      Serial.write("changing schemes\n");
       currentScheme = (currentScheme+1)%RANDOM_SCHEME;
+      Serial.println("scheme changed by timer");
       setup_scheme();
       previousMillis = currentMillis;
     }
